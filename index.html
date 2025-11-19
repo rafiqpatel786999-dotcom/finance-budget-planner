@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Finance Tracker</title>
+  <style>
+    :root{
+      --bg:#0f1724; /* dark blue-gray */
+      --card:#0b1220;
+      --muted:#9aa7bb;
+      --accent:#22c55e; /* green */
+      --danger:#ef4444; /* red */
+      --glass: rgba(255,255,255,0.03);
+      --glass-2: rgba(255,255,255,0.02);
+      --radius:12px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:linear-gradient(180deg, #071028 0%, #07101a 100%);
+      color:#e6eef8;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+      padding:24px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:16px;
+    }
+
+    .container{
+      width:100%;
+      max-width:1100px;
+      background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border-radius:var(--radius);
+      padding:24px;
+      box-shadow:0 8px 30px rgba(2,6,23,0.6);
+      display:grid;
+      gap:18px;
+      grid-template-columns: 1fr 420px;
+    }
+
+    header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+    header h1{font-size:20px;margin:0}
+    header p{margin:0;color:var(--muted);font-size:13px}
+
+    .overview{
+      display:flex;gap:14px;flex-wrap:wrap;align-items:center
+    }
+
+    .card{
+      background:var(--card);
+      padding:16px;border-radius:12px;min-width:0;
+    }
+
+    .balance{
+      display:flex;flex-direction:column;gap:8px;padding:18px;background:linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:12px
+    }
+    .balance .amount{font-size:28px;font-weight:600}
+    .summary{display:flex;gap:12px}
+    .summary .item{flex:1;padding:12px;border-radius:10px;background:var(--glass-2);text-align:center}
+    .summary .item .v{font-size:18px;font-weight:700}
+    .summary .item .l{font-size:12px;color:var(--muted)}
+
+    /* Right column (form + transactions) */
+    .right{
+      display:flex;flex-direction:column;gap:12px
+    }
+
+    form{display:flex;flex-direction:column;gap:10px}
+    label{font-size:13px;color:var(--muted)}
+    input[type="text"],input[type="number"],select{
+      width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit
+    }
+    .row{display:flex;gap:10px}
+    .row .col{flex:1}
+
+    .btn{padding:10px 12px;border-radius:10px;border:none;cursor:pointer;font-weight:600}
+    .btn-primary{background:linear-gradient(90deg,#2563eb,#7c3aed);color:white}
+    .btn-ghost{background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--muted)}
+    .transactions{overflow:auto;max-height:420px;padding:8px;display:flex;flex-direction:column;gap:8px}
+
+    .tx{
+      display:flex;align-items:center;justify-content:space-between;padding:12px;border-radius:10px;background:var(--glass);
+    }
+    .tx .meta{display:flex;gap:12px;align-items:center}
+    .tx .tag{width:10px;height:10px;border-radius:50%}
+    .tx .title{font-weight:600}
+    .tx .amount{font-weight:700}
+    .tx .amount.income{color:var(--accent)}
+    .tx .amount.expense{color:var(--danger)}
+    .tx button{background:transparent;border:none;color:var(--muted);cursor:pointer}
+
+    .empty{color:var(--muted);text-align:center;padding:24px}
+
+    footer{display:flex;gap:8px;align-items:center;justify-content:flex-end;color:var(--muted);font-size:13px}
+
+    /* small chart */
+    .chart-wrap{display:flex;align-items:center;gap:12px}
+
+    /* responsive */
+    @media (max-width: 920px){
+      .container{grid-template-columns:1fr;}
+      .right{order:2}
+    }
+    @media (max-width:480px){
+      body{padding:14px}
+      header h1{font-size:18px}
+      .balance .amount{font-size:22px}
+    }
+  </style>
+</head>
+<body>
+  <main class="container" role="main">
+    <section>
+      <header>
+        <div>
+          <h1>Finance Tracker</h1>
+          <p>Simple personal expense & income manager — data saved locally.</p>
+        </div>
+        <div style="text-align:right">
+          <p id="dateNow"></p>
+        </div>
+      </header>
+
+      <div class="overview">
+        <div class="card balance" aria-live="polite">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div>
+              <div style="font-size:13px;color:var(--muted)">Current Balance</div>
+              <div class="amount" id="balance">$0.00</div>
+            </div>
+            <div style="width:88px;text-align:center">
+              <canvas id="miniChart" width="88" height="88" aria-hidden="true"></canvas>
+            </div>
+          </div>
+
+          <div class="summary" style="margin-top:10px">
+            <div class="item">
+              <div class="v" id="income">$0.00</div>
+              <div class="l">Income</div>
+            </div>
+            <div class="item">
+              <div class="v" id="expense">$0.00</div>
+              <div class="l">Expense</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="flex:1;min-width:220px">
+          <h3 style="margin:0 0 10px 0">Quick tips</h3>
+          <ul style="margin:0 0 0 18px;color:var(--muted);padding:0;font-size:14px">
+            <li>Use positive amounts for income, negative for expenses (or pick type).</li>
+            <li>Data persists in your browser localStorage.</li>
+            <li>Tap a transaction's delete icon to remove it.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <h3 style="margin:0 0 10px 0">Transactions</h3>
+        <div class="transactions" id="transactionsList">
+          <div class="empty">No transactions yet — add one on the right.</div>
+        </div>
+        <footer>
+          <button class="btn btn-ghost" id="clearAll">Clear all</button>
+        </footer>
+      </div>
+    </section>
+
+    <aside class="right">
+      <div class="card">
+        <h3 style="margin:0 0 8px 0">Add Transaction</h3>
+        <form id="txForm">
+          <div>
+            <label for="desc">Description</label>
+            <input id="desc" type="text" placeholder="e.g., Salary, Coffee, Rent" required />
+          </div>
+          <div class="row">
+            <div class="col">
+              <label for="amount">Amount</label>
+              <input id="amount" type="number" step="0.01" placeholder="e.g., 49.99" required />
+            </div>
+            <div class="col">
+              <label for="type">Type</label>
+              <select id="type">
+                <option value="income">Income</option>
+                <option value="expense">Expense</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button class="btn btn-primary" type="submit">Add</button>
+            <button class="btn btn-ghost" type="button" id="fillExample">Example</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="card">
+        <h3 style="margin:0 0 8px 0">Breakdown</h3>
+        <div class="chart-wrap">
+          <canvas id="breakdown" width="240" height="140" aria-label="Income vs expense breakdown"></canvas>
+        </div>
+      </div>
+
+      <div class="card" style="text-align:center;color:var(--muted)">
+        <small>Built with HTML, CSS & JavaScript — single file app</small>
+      </div>
+    </aside>
+  </main>
+
+  <script>
+    // Simple Finance Tracker (single-file)
+    const stateKey = 'ft_transactions_v1';
+    const txForm = document.getElementById('txForm');
+    const descInput = document.getElementById('desc');
+    const amountInput = document.getElementById('amount');
+    const typeSelect = document.getElementById('type');
+    const transactionsList = document.getElementById('transactionsList');
+    const balanceEl = document.getElementById('balance');
+    const incomeEl = document.getElementById('income');
+    const expenseEl = document.getElementById('expense');
+    const clearAllBtn = document.getElementById('clearAll');
+    const fillExampleBtn = document.getElementById('fillExample');
+    const dateNow = document.getElementById('dateNow');
+
+    // Charts
+    const miniChart = document.getElementById('miniChart');
+    const breakdownCanvas = document.getElementById('breakdown');
+
+    // Utilities
+    function saveTransactions(txs){
+      localStorage.setItem(stateKey, JSON.stringify(txs));
+    }
+    function loadTransactions(){
+      try{
+        const raw = localStorage.getItem(stateKey);
+        return raw ? JSON.parse(raw) : [];
+      }catch(e){
+        console.error('Failed to read localStorage', e);
+        return [];
+      }
+    }
+    function formatCurrency(n){
+      const sign = n < 0 ? '-' : '';
+      const abs = Math.abs(n);
+      return sign + new Intl.NumberFormat(undefined, {style:'currency',currency:'USD',maximumFractionDigits:2}).format(abs);
+    }
+    function uid(){return Date.now().toString(36) + Math.random().toString(36).slice(2,7)}
+
+    let transactions = loadTransactions();
+
+    function updateSummary(){
+      const income = transactions.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
+      const expense = transactions.filter(t=>t.amount<0).reduce((s,t)=>s+t.amount,0);
+      const total = income + expense;
+      balanceEl.textContent = formatCurrency(total);
+      incomeEl.textContent = formatCurrency(income);
+      expenseEl.textContent = formatCurrency(Math.abs(expense));
+      drawMiniChart(income, Math.abs(expense));
+      drawBreakdown(income, Math.abs(expense));
+    }
+
+    function renderTransactions(){
+      transactionsList.innerHTML = '';
+      if(transactions.length === 0){
+        const empty = document.createElement('div');
+        empty.className='empty';
+        empty.textContent = 'No transactions yet — add one on the right.';
+        transactionsList.appendChild(empty);
+        return;
+      }
+
+      transactions.slice().reverse().forEach(tx=>{
+        const el = document.createElement('div');
+        el.className = 'tx';
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+        const tag = document.createElement('div');
+        tag.className = 'tag';
+        tag.style.background = tx.amount>0 ? 'linear-gradient(180deg,#10b981,#34d399)' : 'linear-gradient(180deg,#ef4444,#fb7185)';
+        const title = document.createElement('div');
+        title.className = 'title';
+        title.textContent = tx.description;
+        meta.appendChild(tag);
+        meta.appendChild(title);
+
+        const right = document.createElement('div');
+        right.style.display='flex';
+        right.style.alignItems='center';
+        right.style.gap='10px';
+
+        const amount = document.createElement('div');
+        amount.className = 'amount ' + (tx.amount>0 ? 'income' : 'expense');
+        amount.textContent = formatCurrency(tx.amount);
+
+        const del = document.createElement('button');
+        del.title = 'Delete transaction';
+        del.innerHTML = '🗑️';
+        del.onclick = ()=>{ removeTransaction(tx.id); };
+
+        right.appendChild(amount);
+        right.appendChild(del);
+
+        el.appendChild(meta);
+        el.appendChild(right);
+        transactionsList.appendChild(el);
+      });
+    }
+
+    function addTransaction(description, amount){
+      const n = Number(amount);
+      if(!description || isNaN(n) || !isFinite(n)) return false;
+      const tx = {id: uid(), description: description.trim(), amount: n, date: new Date().toISOString()};
+      transactions.push(tx);
+      saveTransactions(transactions);
+      renderTransactions();
+      updateSummary();
+      return true;
+    }
+
+    function removeTransaction(id){
+      const idx = transactions.findIndex(t=>t.id===id);
+      if(idx === -1) return;
+      transactions.splice(idx,1);
+      saveTransactions(transactions);
+      renderTransactions();
+      updateSummary();
+    }
+
+    txForm.addEventListener('submit', e=>{
+      e.preventDefault();
+      const desc = descInput.value;
+      let amt = Number(amountInput.value);
+      const type = typeSelect.value;
+      if(type === 'expense' && amt>0) amt = -Math.abs(amt);
+      if(type === 'income' && amt<0) amt = Math.abs(amt);
+      if(addTransaction(desc, amt)){
+        txForm.reset();
+        descInput.focus();
+      } else {
+        alert('Please enter a valid description and amount');
+      }
+    });
+
+    clearAllBtn.addEventListener('click', ()=>{
+      if(!confirm('Clear all transactions? This cannot be undone.')) return;
+      transactions = [];
+      saveTransactions(transactions);
+      renderTransactions();
+      updateSummary();
+    });
+
+    fillExampleBtn.addEventListener('click', ()=>{
+      addTransaction('Salary', 2500);
+      addTransaction('Groceries', -76.45);
+      addTransaction('Rent', -900);
+      addTransaction('Freelance', 420);
+    });
+
+    // Mini donut chart
+    function drawMiniChart(income, expense){
+      const ctx = miniChart.getContext('2d');
+      const size = miniChart.width;
+      ctx.clearRect(0,0,size,size);
+      const total = income + expense || 1;
+      const incPct = income/total;
+      const expPct = expense/total;
+      const cx = size/2, cy = size/2, r = size/2 - 6;
+      // background ring
+      ctx.beginPath();
+      ctx.arc(cx,cy,r,0,2*Math.PI);
+      ctx.fillStyle='rgba(255,255,255,0.02)';
+      ctx.fill();
+      // income
+      let start = -Math.PI/2;
+      let end = start + incPct*2*Math.PI;
+      ctx.beginPath();
+      ctx.moveTo(cx,cy);
+      ctx.arc(cx,cy,r,start,end);
+      ctx.closePath();
+      ctx.fillStyle = '#10b981';
+      ctx.fill();
+      // expense
+      start = end;
+      end = start + expPct*2*Math.PI;
+      ctx.beginPath();
+      ctx.moveTo(cx,cy);
+      ctx.arc(cx,cy,r,start,end);
+      ctx.closePath();
+      ctx.fillStyle = '#ef4444';
+      ctx.fill();
+      // inner circle to make donut
+      ctx.beginPath();
+      ctx.arc(cx,cy,r*0.58,0,2*Math.PI);
+      ctx.fillStyle='rgba(7,16,32,0.9)';
+      ctx.fill();
+    }
+
+    // Breakdown chart (simple manual pie)
+    function drawBreakdown(income, expense){
+      const ctx = breakdownCanvas.getContext('2d');
+      const w = breakdownCanvas.width, h = breakdownCanvas.height;
+      ctx.clearRect(0,0,w,h);
+      const total = income + expense || 1;
+      const cx = w/4, cy = h/2, r = Math.min(w,h)/4 - 6;
+      let start = -Math.PI/2;
+      const incAngle = (income/total) * 2*Math.PI;
+      // income
+      ctx.beginPath();
+      ctx.moveTo(cx,cy);
+      ctx.arc(cx,cy,r,start,start+incAngle);
+      ctx.closePath();
+      ctx.fillStyle = '#10b981';
+      ctx.fill();
+      // expense
+      ctx.beginPath();
+      ctx.moveTo(cx,cy);
+      ctx.arc(cx,cy,r,start+incAngle,start+2*Math.PI);
+      ctx.closePath();
+      ctx.fillStyle = '#ef4444';
+      ctx.fill();
+      // legend
+      ctx.font = '13px sans-serif';
+      ctx.fillStyle = '#10b981';
+      ctx.fillRect(w/2, 28, 12,12);
+      ctx.fillStyle = 'white';
+      ctx.fillText('Income ' + formatCurrency(income), w/2 + 18, 38);
+      ctx.fillStyle = '#ef4444';
+      ctx.fillRect(w/2, 58, 12,12);
+      ctx.fillStyle = 'white';
+      ctx.fillText('Expense ' + formatCurrency(expense), w/2 + 18, 68);
+    }
+
+    // Initialize UI
+    function init(){
+      renderTransactions();
+      updateSummary();
+      dateNow.textContent = new Date().toLocaleString(undefined, {weekday:'short', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
+    }
+
+    window.addEventListener('resize', ()=>{ updateSummary(); });
+
+    init();
+  </script>
+</body>
+</html>
